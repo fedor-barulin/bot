@@ -16,7 +16,7 @@ function App() {
     setLoading(true);
 
     try {
-      const { data } = await axios.post('/api/chat', { question: userMsg.content });
+      const { data } = await axios.post('/chat', { question: userMsg.content });
       setMessages(prev => [...prev, { role: 'assistant', content: data.answer, sources: data.sources }]);
     } catch (e) {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Ошибка сервера' }]);

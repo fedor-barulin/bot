@@ -1,19 +1,32 @@
+import os
+import logging
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
-from sentence_transformers import SentenceTransformer
+
+QDRANT_LOCAL_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "qdrant_storage")
 
 class HybridSearch:
     """Гибридный поиск (Векторный + Keyword) в Qdrant."""
     def __init__(self, qdrant_host="localhost", qdrant_port=6333):
-        self.client = QdrantClient(host=qdrant_host, port=qdrant_port)
-        # Использование мультиязычной модели embeddings
-        self.encoder = SentenceTransformer("BAAI/bge-m3", device="cpu")
+        use_local = os.getenv("QDRANT_HOST") is None
+        if use_local:
+            self.client = QdrantClient(path=QDRANT_LOCAL_PATH)
+        else:
+            self.client = QdrantClient(host=qdrant_host, port=qdrant_port)
+        self._encoder = None
         self.collection_name = "knowledge_base"
+
+    def _get_encoder(self):
+        if self._encoder is None:
+            from sentence_transformers import SentenceTransformer
+            logging.info("Loading BAAI/bge-m3 encoder...")
+            self._encoder = SentenceTransformer("BAAI/bge-m3", device="cpu")
+            logging.info("Encoder loaded.")
+        return self._encoder
 
     def search(self, queries: list[str], sections: list[str], limit=10) -> list[dict]:
         all_results = []
-        
-        # Фильтрация по разделам из Knowledge Router
+
         must_conditions = []
         if sections:
             must_conditions.append(
@@ -23,12 +36,10 @@ class HybridSearch:
                 )
             )
 
+        encoder = self._get_encoder()
         for query in queries:
             try:
-                vector = self.encoder.encode(query).tolist()
-                
-                # Qdrant search (поддерживает Dense векторы, для BM25 нужно настраивать Sparse векторы в Qdrant)
-                # Предполагаем гибридный поиск реализованный через fast hybrid Qdrant, здесь обычный:
+                vector = encoder.encode(query).tolist()
                 hits = self.client.search(
                     collection_name=self.collection_name,
                     query_vector=vector,
@@ -38,8 +49,7 @@ class HybridSearch:
                 for hit in hits:
                     all_results.append(hit.payload)
             except Exception as e:
-                print(f"HybridSearch error: {e}")
-        
-        # Дедупликация чанков
+                logging.error(f"HybridSearch error: {e}")
+
         unique_results = {res['chunk_id']: res for res in all_results if 'chunk_id' in res}
         return list(unique_results.values())
