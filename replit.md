@@ -14,6 +14,15 @@ Enterprise RAG (Retrieval-Augmented Generation) AI support system for a telecom 
 - **Embeddings**: BAAI/bge-m3 (lazy-loaded on first query)
 - **Reranker**: BAAI/bge-reranker-large (lazy-loaded on first query)
 
+## Pipeline (Streamlined)
+
+The RAG pipeline runs 1 LLM call per query for fast response:
+1. KnowledgeRouter (heuristic, no LLM) → always returns [] (no filter = search all)
+2. HybridSearch via `query_points()` (qdrant-client 1.17+ API) → finds top chunks
+3. Reranker (lazy-loaded BAAI/bge-reranker-large) → top 5 chunks
+4. ContextBuilder (max 1500 chars per chunk to stay within LLM context limits)
+5. ReasoningEngine (single g4f LLM call) → structured answer in Russian
+
 ## Key Features
 
 - Query understanding (intent, service, problem type)
