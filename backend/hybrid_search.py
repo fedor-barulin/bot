@@ -31,7 +31,7 @@ class HybridSearch:
         if sections:
             must_conditions.append(
                 models.FieldCondition(
-                    key="section",
+                    key="title",
                     match=models.MatchAny(any=sections)
                 )
             )
@@ -40,13 +40,14 @@ class HybridSearch:
         for query in queries:
             try:
                 vector = encoder.encode(query).tolist()
-                hits = self.client.search(
+                result = self.client.query_points(
                     collection_name=self.collection_name,
-                    query_vector=vector,
+                    query=vector,
                     query_filter=models.Filter(must=must_conditions) if must_conditions else None,
-                    limit=limit
+                    limit=limit,
+                    with_payload=True
                 )
-                for hit in hits:
+                for hit in result.points:
                     all_results.append(hit.payload)
             except Exception as e:
                 logging.error(f"HybridSearch error: {e}")

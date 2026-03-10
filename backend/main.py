@@ -19,7 +19,7 @@ app.add_middleware(
 # Инициализация компонент
 QDRANT_HOST = os.getenv("QDRANT_HOST", "localhost")
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-LLM_MODEL = os.getenv("LLM_MODEL", "llama3")
+LLM_MODEL = os.getenv("LLM_MODEL", "")
 
 pipeline = RAGPipeline(llm_model=LLM_MODEL, qdrant_host=QDRANT_HOST)
 cache = Cache(host=REDIS_HOST)

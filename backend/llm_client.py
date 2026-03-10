@@ -9,7 +9,7 @@ class LLMClient:
     def generate(self, system_prompt: str, user_prompt: str) -> str:
         try:
             response = g4f.ChatCompletion.create(
-                model=self.model_name,
+                model=self.model_name or g4f.models.default,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
