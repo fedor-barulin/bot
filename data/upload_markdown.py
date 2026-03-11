@@ -174,7 +174,17 @@ def main():
         sys.exit(1)
     print(f"Found {len(chunks)} chunks")
 
-    client = get_client(args.qdrant_host, args.qdrant_port)
+    try:
+        client = get_client(args.qdrant_host, args.qdrant_port)
+    except RuntimeError as e:
+        if "already accessed" in str(e):
+            print("\nОШИБКА: Хранилище Qdrant занято запущенным бэкендом.")
+            print("Есть два варианта:")
+            print("  1. Загрузить файл через API (бэкенд останавливать не нужно):")
+            print(f"       curl -X POST http://localhost:8000/admin/upload -F \"file=@{args.filepath}\"")
+            print("  2. Остановить бэкенд, затем запустить этот скрипт снова.")
+            sys.exit(1)
+        raise
     ensure_collection(client)
 
     start_id = client.count(collection_name=COLLECTION_NAME).count
