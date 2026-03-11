@@ -9,7 +9,7 @@ class AnswerValidator:
 
     def validate(self, answer: str, context: str) -> str:
         if not answer.strip():
-            return "Информация отсутствует в базе знаний."
+            return "Информация отсутствует в базе знаний"
 
         if "Информация отсутствует" in answer:
             return answer
@@ -20,15 +20,15 @@ class AnswerValidator:
 You are an anti-hallucination verification module.
 Check the support engineer's response for hallucinations.
 Every fact mentioned in the response MUST be present in the provided context.
-If a fact is not found in the context - you must delete it from the response.
-If the entire response does not align with the context at all, output strictly: "Информация отсутствует в базе знаний."
+If the answer contains information not present in the context, you must output strictly:
+"Информация отсутствует в базе знаний"
 
 All your responses must be in Russian only.
-Output ONLY the corrected and verified response, nothing else.
+Output ONLY the verified response, nothing else. Do not explain.
 """
         user_prompt = f"Context:\n{truncated_context}\n\nEngineer's response to check:\n{answer}"
 
-        validated_answer = self.llm.generate(system_prompt, user_prompt)
+        validated_answer = self.llm.generate(system_prompt, user_prompt, max_tokens=200)
 
         if not validated_answer.strip():
             return answer

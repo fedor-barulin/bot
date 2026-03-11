@@ -6,15 +6,19 @@ class LLMClient:
     def __init__(self, model_name=g4f.models.default):
         self.model_name = model_name
 
-    def generate(self, system_prompt: str, user_prompt: str) -> str:
+    def generate(self, system_prompt: str, user_prompt: str, max_tokens: int = None) -> str:
         try:
-            response = g4f.ChatCompletion.create(
-                model=self.model_name or g4f.models.default,
-                messages=[
+            kwargs = {
+                "model": self.model_name or g4f.models.default,
+                "messages": [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ]
-            )
+            }
+            if max_tokens:
+                kwargs["max_tokens"] = max_tokens
+
+            response = g4f.ChatCompletion.create(**kwargs)
             return response
         except Exception as e:
             logging.error(f"Error calling LLM {self.model_name}: {e}")
