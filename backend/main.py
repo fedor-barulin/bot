@@ -1,9 +1,12 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File, HTTPException
 from pydantic import BaseModel
 from rag_pipeline import RAGPipeline
 from cache import Cache
 from analytics import Analytics
+from knowledge_manager import parse_file
 from fastapi.middleware.cors import CORSMiddleware
+import asyncio
+import logging
 import os
 
 app = FastAPI(title="Telecom AI Support API", version="1.0.0")
@@ -27,7 +30,6 @@ analytics = Analytics()
 
 @app.on_event("startup")
 async def preload_models():
-    import asyncio
     loop = asyncio.get_event_loop()
     encoder = await loop.run_in_executor(None, pipeline.hybrid_search._get_encoder)
     await loop.run_in_executor(None, encoder.encode, ["warmup"])
@@ -81,3 +83,58 @@ async def chat_endpoint(request: ChatRequest):
     analytics.log_interaction(request.question, answer, chunks, p_time)
     
     return response_data
+
+
+# --- Admin endpoints ---
+
+@app.post("/admin/clear")
+async def admin_clear():
+    """Полностью очищает базу знаний (удаляет все чанки)."""
+    try:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, pipeline.hybrid_search.clear_collection)
+        pipeline._cached_search.cache_clear()
+        count = pipeline.hybrid_search.client.count(
+            collection_name=pipeline.hybrid_search.collection_name
+        ).count
+        logging.info("Knowledge base cleared.")
+        return {"status": "ok", "chunks_remaining": count}
+    except Exception as e:
+        logging.error(f"admin/clear error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/upload")
+async def admin_upload(file: UploadFile = File(...)):
+    """Загружает MD или JSON файл и добавляет чанки в базу знаний."""
+    filename = file.filename or ""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext not in ("md", "json"):
+        raise HTTPException(status_code=400, detail="Принимаются только файлы .md и .json")
+
+    try:
+        raw = await file.read()
+        content = raw.decode("utf-8")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Не удалось прочитать файл: {e}")
+
+    try:
+        chunks = parse_file(filename, content)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Ошибка разбора файла: {e}")
+
+    if not chunks:
+        raise HTTPException(status_code=422, detail="Чанки не найдены. Проверьте формат файла.")
+
+    try:
+        loop = asyncio.get_event_loop()
+        added = await loop.run_in_executor(None, pipeline.hybrid_search.upload_chunks, chunks)
+        pipeline._cached_search.cache_clear()
+        total = pipeline.hybrid_search.client.count(
+            collection_name=pipeline.hybrid_search.collection_name
+        ).count
+        logging.info(f"Uploaded {added} chunks from {filename}. Total: {total}")
+        return {"status": "ok", "added": added, "total": total}
+    except Exception as e:
+        logging.error(f"admin/upload error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

@@ -24,6 +24,38 @@ class HybridSearch:
             logging.info("Encoder loaded.")
         return self._encoder
 
+    def clear_collection(self):
+        existing = [c.name for c in self.client.get_collections().collections]
+        if self.collection_name in existing:
+            self.client.delete_collection(self.collection_name)
+        self.client.create_collection(
+            collection_name=self.collection_name,
+            vectors_config=models.VectorParams(size=1024, distance=models.Distance.COSINE),
+        )
+
+    def upload_chunks(self, chunks: list[dict]) -> int:
+        start_id = self.client.count(collection_name=self.collection_name).count
+        encoder = self._get_encoder()
+        points = []
+        for i, chunk in enumerate(chunks):
+            chunk_id = start_id + i
+            vector = encoder.encode(chunk["text"]).tolist()
+            points.append(models.PointStruct(
+                id=chunk_id,
+                vector=vector,
+                payload={
+                    "chunk_id": chunk_id,
+                    "title": chunk["title"],
+                    "section": chunk["section"],
+                    "page": chunk["page"],
+                    "tags": chunk["tags"],
+                    "text": chunk["text"],
+                    "source": chunk["source"],
+                },
+            ))
+        self.client.upsert(collection_name=self.collection_name, points=points)
+        return len(points)
+
     def search(self, queries: list[str], sections: list[str], limit=10) -> list[dict]:
         all_results = []
 

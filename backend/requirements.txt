@@ -6,3 +6,4 @@ FlagEmbedding
 redis
 g4f
 pydantic
+python-multipart
