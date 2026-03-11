@@ -11,12 +11,17 @@ function App() {
     if (!input.trim()) return;
     
     const userMsg = { role: 'user', content: input };
+    const historyToSend = messages.map(m => ({ role: m.role, content: m.content }));
+    
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setLoading(true);
 
     try {
-      const { data } = await axios.post('/chat', { question: userMsg.content });
+      const { data } = await axios.post('/chat', { 
+        question: userMsg.content,
+        history: historyToSend
+      });
       setMessages(prev => [...prev, { role: 'assistant', content: data.answer, sources: data.sources }]);
     } catch (e) {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Ошибка сервера' }]);
@@ -29,11 +34,23 @@ function App() {
     navigator.clipboard.writeText(text);
     alert('Ответ скопирован!');
   };
+  
+  const clearChat = () => {
+    if (window.confirm('Вы уверены, что хотите очистить историю сообщений?')) {
+      setMessages([]);
+    }
+  };
 
   return (
     <div className="chat-container">
-      <header className="chat-header">
+      <header className="chat-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2>Telecom AI Agent</h2>
+        <button 
+          onClick={clearChat} 
+          style={{ background: '#ff4d4f', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }}
+        >
+          🗑 Очистить
+        </button>
       </header>
       <div className="chat-messages">
         {messages.map((m, i) => (
@@ -54,7 +71,7 @@ function App() {
             </div>
             {m.role === 'assistant' && (
               <div className="message-actions">
-                <button onClick={() => copyToClipboard(m.content)}>📋 Copy</button>
+                <button onClick={() => copyToClipboard(m.content)}>📋 Копировать</button>
                 <button onClick={() => alert('Оценка отправлена')}>👍</button>
                 <button onClick={() => alert('Оценка отправлена')}>👎</button>
               </div>

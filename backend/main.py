@@ -25,9 +25,20 @@ pipeline = RAGPipeline(llm_model=LLM_MODEL, qdrant_host=QDRANT_HOST)
 cache = Cache(host=REDIS_HOST)
 analytics = Analytics()
 
+@app.on_event("startup")
+async def preload_models():
+    import asyncio
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, pipeline.hybrid_search._get_encoder)
+
 # Модели API
+class MessageItem(BaseModel):
+    role: str
+    content: str
+    
 class ChatRequest(BaseModel):
     question: str
+    history: list[MessageItem] = []
 
 class SourceItem(BaseModel):
     title: str
@@ -40,13 +51,14 @@ class ChatResponse(BaseModel):
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
-    # Проверка кеша
-    cached = cache.get(request.question)
+    # Проверка кеша (кеш используем только если пустая история, иначе могут быть конфликты)
+    cached = cache.get(request.question) if not request.history else None
     if cached:
         return cached
 
     # RAG Pipeline
-    answer, chunks, p_time = pipeline.process(request.question)
+    history_dicts = [{"role": msg.role, "content": msg.content} for msg in request.history]
+    answer, chunks, p_time = pipeline.process(request.question, history=history_dicts)
     
     # Формирование ссылок на источники
     sources = []
