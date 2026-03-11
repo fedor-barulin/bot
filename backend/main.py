@@ -29,7 +29,8 @@ analytics = Analytics()
 async def preload_models():
     import asyncio
     loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, pipeline.hybrid_search._get_encoder)
+    encoder = await loop.run_in_executor(None, pipeline.hybrid_search._get_encoder)
+    await loop.run_in_executor(None, encoder.encode, ["warmup"])
 
 # Модели API
 class MessageItem(BaseModel):
