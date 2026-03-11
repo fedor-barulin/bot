@@ -121,9 +121,51 @@ npm start
 
 ## Наполнение базы знаний
 
-### Формат файла
+Поддерживаются два формата файлов: **JSON** и **Markdown**. Формат определяется автоматически по расширению.
 
-Скрипт `data/upload_markdown.py` принимает markdown-файлы. Каждый чанк:
+### Формат JSON (рекомендуется)
+
+Массив объектов. Каждый объект — один чанк документа:
+
+```json
+[
+  {
+    "title": "Мобильный Интернет",
+    "source": "Мобильный Интернет.pdf",
+    "section": "Общая информация",
+    "chunk_id": 1,
+    "text": "Обязательная услуга для доступа в Интернет по технологии LTE (4G), GPRS/EDGE (2G)...",
+    "page": 1,
+    "tags": ["internet", "activation"],
+    "language": "ru"
+  },
+  {
+    "title": "Мобильный Интернет",
+    "source": "Мобильный Интернет.pdf",
+    "section": "Стоимость",
+    "chunk_id": 2,
+    "text": "Стоимость округляется до 1 коп, объём — до 128 Кб...",
+    "page": 2,
+    "tags": ["internet"],
+    "language": "ru"
+  }
+]
+```
+
+| Поле | Обязательное | Описание |
+|---|---|---|
+| `title` | да | Название документа (без `.pdf`) |
+| `source` | нет | Имя файла-источника (по умолчанию `{title}.pdf`) |
+| `section` | да | Раздел внутри документа |
+| `chunk_id` | нет | Номер чанка (генерируется автоматически при загрузке) |
+| `text` | да | Текст чанка — именно он векторизуется и ищется |
+| `page` | да | Номер страницы в исходном PDF |
+| `tags` | нет | Массив строк-тегов (или пустой массив `[]`) |
+| `language` | нет | Код языка, не используется системой |
+
+### Формат Markdown
+
+Альтернативный формат — чанки разделяются строкой `---`:
 
 ```markdown
 ### [Название файла.pdf] Раздел: Название раздела (Стр. N)
@@ -139,16 +181,35 @@ npm start
 - **Теги** — через запятую, или `нет`
 - **Разделитель** — строка `---` между чанками
 
-### Команды загрузки
+### Способы загрузки
 
-**Локальный режим** (Qdrant-сервер не нужен, данные в `data/qdrant_storage/`):
+#### Способ 1 — Через API (бэкенд не нужно останавливать)
+
 ```bash
+# Загрузить JSON
+curl -X POST http://localhost:8000/admin/upload -F "file=@my_data.json"
+
+# Загрузить Markdown
+curl -X POST http://localhost:8000/admin/upload -F "file=@my_data.md"
+
+# Сначала очистить базу, потом загрузить новое
+curl -X POST http://localhost:8000/admin/clear
+curl -X POST http://localhost:8000/admin/upload -F "file=@my_data.json"
+```
+
+#### Способ 2 — Через скрипт (требует остановки бэкенда)
+
+Бэкенд и скрипт не могут одновременно держать lock на локальное хранилище Qdrant.
+
+**Локальный режим** (данные в `data/qdrant_storage/`):
+```bash
+python data/upload_markdown.py data/my_file.json
 python data/upload_markdown.py data/my_file.md
 ```
 
-**Docker / серверный режим:**
+**Docker / серверный режим** (Qdrant-сервер работает отдельно):
 ```bash
-python data/upload_markdown.py data/my_file.md --qdrant-host localhost
+python data/upload_markdown.py data/my_file.json --qdrant-host localhost
 python data/upload_markdown.py data/my_file.md --qdrant-host localhost --qdrant-port 6333
 ```
 
@@ -182,48 +243,6 @@ python data/upload_markdown.py data/my_file.md --qdrant-host localhost --qdrant-
 ```
 
 Redis-кеш проверяется перед шагом 1 — если точный вопрос уже встречался, ответ возвращается без обращения к модели.
-
----
-
-## Управление базой знаний через API
-
-Бэкенд предоставляет два эндпоинта для управления базой знаний прямо во время работы сервера — останавливать бэкенд не нужно.
-
-### `POST /admin/clear`
-
-Удаляет все чанки из базы знаний (пересоздаёт коллекцию с нуля).
-
-```bash
-curl -X POST http://localhost:8000/admin/clear
-# {"status": "ok", "chunks_remaining": 0}
-```
-
-### `POST /admin/upload`
-
-Загружает `.md` или `.json` файл, векторизует чанки и добавляет в базу.
-
-```bash
-# Загрузить JSON
-curl -X POST http://localhost:8000/admin/upload \
-  -F "file=@my_documents.json"
-
-# Загрузить Markdown
-curl -X POST http://localhost:8000/admin/upload \
-  -F "file=@my_documents.md"
-
-# Ответ:
-# {"status": "ok", "added": 12, "total": 12}
-```
-
-**Типичный сценарий — заменить базу знаний целиком:**
-```bash
-# 1. Очистить старые данные
-curl -X POST http://localhost:8000/admin/clear
-
-# 2. Загрузить новый файл (или несколько)
-curl -X POST http://localhost:8000/admin/upload -F "file=@file1.json"
-curl -X POST http://localhost:8000/admin/upload -F "file=@file2.md"
-```
 
 ---
 
