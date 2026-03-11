@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import './App.css';
 
@@ -6,6 +6,22 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, loading]);
+
+  const formatMessage = (text) => {
+    let formatted = text.replace(/\n/g, '<br/>');
+    formatted = formatted.replace(/\\\*/g, '*');
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    return formatted;
+  };
 
   const sendMessage = async () => {
     if (!input.trim()) return;
@@ -57,7 +73,7 @@ function App() {
           <div key={i} className={`message ${m.role}`}>
             <div className="message-content">
               <strong>{m.role === 'user' ? 'Вы' : 'AI-Инженер'}:</strong>
-              <div dangerouslySetInnerHTML={{ __html: m.content.replace(/\n/g, '<br/>') }} />
+              <div dangerouslySetInnerHTML={{ __html: formatMessage(m.content) }} />
               {m.sources && m.sources.length > 0 && (
                 <div className="sources">
                   <br /><strong>Источники:</strong>
@@ -79,6 +95,7 @@ function App() {
           </div>
         ))}
         {loading && <div className="message assistant"><div className="loader">Анализ базы знаний...</div></div>}
+        <div ref={messagesEndRef} />
       </div>
       <div className="chat-input-area">
         <input 

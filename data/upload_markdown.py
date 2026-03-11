@@ -1,32 +1,33 @@
 """
-Upload markdown-format RAG chunks to the Qdrant knowledge base.
+Upload RAG chunks to the Qdrant knowledge base.
 
-Supports two modes:
-  - Local disk mode (default): Qdrant data stored on disk, no server needed.
-  - Server mode: Connect to a running Qdrant HTTP server.
+Supports two file formats (auto-detected by extension):
+  - JSON (.json): array of objects with fields title, source, section,
+                  chunk_id, text, page, tags
+  - Markdown (.md): chunks separated by --- with headers
+
+Supports two Qdrant modes:
+  - Local disk mode (default): data stored on disk, no server needed.
+  - Server mode: connect to a running Qdrant HTTP server.
 
 Usage:
-  # Local disk mode (default)
+  # JSON file (local disk mode)
+  python data/upload_markdown.py data/my_file.json
+
+  # Markdown file (local disk mode)
   python data/upload_markdown.py data/my_file.md
 
-  # Server mode (Docker or remote Qdrant)
-  python data/upload_markdown.py data/my_file.md --qdrant-host localhost
+  # Server mode
+  python data/upload_markdown.py data/my_file.json --qdrant-host localhost
   python data/upload_markdown.py data/my_file.md --qdrant-host localhost --qdrant-port 6333
 
   # Or via environment variable
-  QDRANT_HOST=localhost python data/upload_markdown.py data/my_file.md
-
-Expected markdown format per chunk:
-  ### [filename.pdf] Раздел: Section Name (Стр. page_num)
-  **Теги:** tag1, tag2
-
-  content text...
-
-  ---
+  QDRANT_HOST=localhost python data/upload_markdown.py data/my_file.json
 """
 import re
 import os
 import sys
+import json
 import argparse
 
 from qdrant_client import QdrantClient
@@ -94,6 +95,31 @@ def parse_chunks(filepath: str) -> list[dict]:
     return chunks
 
 
+def parse_chunks_json(filepath: str) -> list[dict]:
+    with open(filepath, encoding="utf-8") as f:
+        data = json.load(f)
+
+    if not isinstance(data, list):
+        raise ValueError("JSON file must contain a top-level array of chunk objects.")
+
+    chunks = []
+    for item in data:
+        text = item.get("text", "").strip()
+        if not text:
+            continue
+        title = item.get("title", "")
+        source = item.get("source", f"{title}.pdf" if title else "unknown.pdf")
+        chunks.append({
+            "title": title,
+            "section": item.get("section", ""),
+            "page": int(item.get("page", 0)),
+            "tags": item.get("tags") or [],
+            "text": text,
+            "source": source,
+        })
+    return chunks
+
+
 def get_client(qdrant_host: str | None, qdrant_port: int) -> QdrantClient:
     host = qdrant_host or os.getenv("QDRANT_HOST")
     if host:
@@ -136,8 +162,13 @@ def main():
         print(f"File not found: {args.filepath}")
         sys.exit(1)
 
+    ext = os.path.splitext(args.filepath)[1].lower()
     print(f"Parsing chunks from: {args.filepath}")
-    chunks = parse_chunks(args.filepath)
+    if ext == ".json":
+        chunks = parse_chunks_json(args.filepath)
+    else:
+        chunks = parse_chunks(args.filepath)
+
     if not chunks:
         print("No chunks found. Make sure the file follows the expected format.")
         sys.exit(1)
