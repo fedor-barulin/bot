@@ -427,7 +427,7 @@ export function MotivDesktop() {
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleSend()}
-                  placeholder="Спросите технический вопрос..."
+                  placeholder="Задайте свой вопрос"
                   style={{
                     flex: 1, border: 'none', outline: 'none',
                     background: 'transparent', fontSize: 15,
