@@ -1,6 +1,6 @@
 # Мотив AI — Корпоративный RAG-ассистент
 
-Внутренний AI-помощник для сотрудников оператора связи **Мотив**. Отвечает строго на основе загруженных внутренних документов, не выдумывает факты и всегда ссылается на источник из базы знаний. Поддерживает многоходовой диалог с учётом истории переписки.
+Внутренний AI-помощник для сотрудников оператора связи **Мотив**. Отвечает строго на основе загруженных внутренних документов, не выдумывает факты и всегда ссылается на источник из базы знаний. Поддерживает многоходовой диалог с учётом истории переписки. История диалога сохраняется в браузере (IndexedDB) и восстанавливается при обновлении страницы.
 
 ---
 
@@ -14,6 +14,7 @@
 | **LLM** | `g4f` — бесплатные провайдеры, без GPU и API-ключей |
 | **Cache** | Redis — кеш готовых ответов (TTL 1 час) + LRU in-memory для результатов векторного поиска |
 | **Frontend** | React 18 → nginx (фирменный дизайн Мотив) |
+| **Хранение истории** | IndexedDB в браузере — диалог сохраняется между сессиями |
 
 ---
 
@@ -22,24 +23,39 @@
 ```
 .
 ├── backend/
-│   ├── main.py            # Точка входа API (/chat, /admin/upload, /admin/clear)
-│   ├── rag_pipeline.py    # RAG-пайплайн: поиск → контекст → LLM → очистка
-│   ├── hybrid_search.py   # Векторный поиск в Qdrant
-│   ├── llm_client.py      # Клиент g4f (stream=False, max_tokens=1000)
-│   ├── cache.py           # Redis-кеш готовых ответов (TTL 3600 сек)
-│   ├── analytics.py       # Логирование запросов в analytics.log
+│   ├── main.py                # Точка входа API (/chat, /health, /admin/*)
+│   ├── rag_pipeline.py        # RAG-пайплайн: поиск → контекст → LLM → очистка
+│   ├── hybrid_search.py       # Векторный поиск в Qdrant (search, upload, delete, list)
+│   ├── knowledge_manager.py   # Парсер JSON/MD чанков, включая поле article_url
+│   ├── knowledge_router.py    # Маршрутизация запросов по тематике
+│   ├── llm_client.py          # Клиент g4f (stream=False, max_tokens=1000)
+│   ├── cache.py               # Redis-кеш готовых ответов (TTL 3600 сек)
+│   ├── context_builder.py     # Сборка контекста для LLM из чанков
+│   ├── query_rewriter.py      # Перефразирование вопроса для лучшего поиска
+│   ├── query_understanding.py # Анализ типа вопроса
+│   ├── reranker.py            # Переранжирование результатов поиска
+│   ├── answer_validator.py    # Валидация качества ответа
+│   ├── reasoning_engine.py    # Логика принятия решений
+│   ├── response_cleaner.py    # Очистка ответа от рекламы и мусора
+│   ├── analytics.py           # Логирование запросов в analytics.log
 │   └── requirements.txt
 ├── frontend/
-│   └── chat_ui/           # React-чат (сборка через Docker)
-│       └── src/App.js     # Чат-интерфейс: история, источники, быстрые ответы
+│   └── chat_ui/
+│       └── src/
+│           ├── App.js         # Чат-интерфейс: история, источники, быстрые ответы
+│           ├── App.css        # Стили + медиа-запросы для мобильных устройств
+│           └── useDB.js       # IndexedDB: сохранение/загрузка/очистка истории
 ├── infra/
-│   ├── docker-compose.yml    # Все сервисы: backend + frontend + qdrant + redis
-│   ├── Dockerfile            # Образ бэкенда (Python + BAAI/bge-m3)
-│   ├── Dockerfile.frontend   # Образ фронтенда (React build + nginx)
-│   └── nginx.conf            # Nginx: раздача SPA + проксирование /chat и /admin/
+│   ├── docker-compose.yml     # Все сервисы: backend + frontend + qdrant + redis
+│   ├── Dockerfile             # Образ бэкенда (Python + BAAI/bge-m3)
+│   ├── Dockerfile.frontend    # Образ фронтенда (React build + nginx)
+│   └── nginx.conf             # Nginx: раздача SPA + проксирование /chat и /admin/
+├── docs/
+│   ├── base1203.json              # Текущая база знаний (20 чанков)
+│   └── knowledge_base_requirements.md  # Требования к качеству чанков
 └── data/
-    ├── rag_converted.json    # База знаний (12 чанков, 4 документа)
-    └── upload_markdown.py    # Скрипт загрузки чанков
+    ├── rag_converted.json     # Исходная база знаний (legacy)
+    └── upload_markdown.py     # Скрипт загрузки чанков напрямую в Qdrant
 ```
 
 ---
@@ -78,14 +94,16 @@ docker compose -f infra/docker-compose.yml up -d --build
 curl -X POST http://localhost:8000/admin/clear
 
 # Загрузить JSON с чанками
-curl -X POST http://localhost:8000/admin/upload -F "file=@data/rag_converted.json"
+curl -X POST http://localhost:8000/admin/upload -F "file=@docs/base1203.json"
 ```
-
-Чанки из `data/rag_converted.json` можно загрузить без перезапуска бэкенда — API держит lock на Qdrant, а не скрипт.
 
 ### Шаг 3 — Проверить работу
 
 ```bash
+# Проверить статус бэкенда
+curl http://localhost:8000/health
+
+# Отправить тестовый запрос
 curl -X POST http://localhost:8000/chat \
   -H 'Content-Type: application/json' \
   -d '{"question": "Как настроить мобильный интернет?", "history": []}'
@@ -144,7 +162,7 @@ docker compose -f infra/docker-compose.yml up -d --build backend
          │
          ├─► Сохранить в Redis
          ▼
-Ответ + ссылки на источники (документ, раздел, страница)
+Ответ + ссылки на источники (документ, раздел, страница, URL если есть)
 ```
 
 ### Логика системного промпта (дерево решений)
@@ -157,20 +175,25 @@ docker compose -f infra/docker-compose.yml up -d --build backend
 
 ## Текущая база знаний
 
-Файл: `data/rag_converted.json` — 12 чанков из 4 документов.
-
-| Документ | Разделы | Страниц |
-|---|---|---|
-| Свой тариф_СО | Общая информация, Ограничения, Стоимость | 7 |
-| Мобильный Интернет | Общая информация, Настройка, Стоимость | 3 |
-| Контакты МОТИВ | Общая информация | 1 |
-| Вспомогательные сервисные номера | Общая информация | 1 |
+Файл: `docs/base1203.json` — 20 чанков.
 
 ---
 
 ## Фронтенд
 
-Фирменный дизайн Мотив: бренд-оранжевый `#f37021`, тёмный заголовок `#21242c`, пузырь пользователя `#e8734a`.
+Фирменный дизайн Мотив: бренд-оранжевый `#f37021`, тёмный заголовок `#21242c`, пузырь пользователя `#F4AA92`.
+
+### Индикатор статуса
+
+В шапке отображается статус подключения к бэкенду: зелёный «Онлайн» / серый «Оффлайн». Проверка каждые 30 секунд с таймаутом 5 секунд.
+
+### Сохранение истории диалога
+
+История переписки сохраняется в IndexedDB браузера (`motiv_chat`) и восстанавливается при обновлении страницы. Кнопка «Очистить чат» удаляет историю из IndexedDB и очищает экран.
+
+### Источники с кликабельными ссылками
+
+Если чанк содержит поле `article_url`, тег источника под ответом становится кликабельной ссылкой (открывается в новой вкладке).
 
 ### Быстрые ответы (Quick Replies)
 
@@ -178,6 +201,10 @@ docker compose -f infra/docker-compose.yml up -d --build backend
 - Список элементов (`- вариант 1`, `- вариант 2`) → отдельные чипы
 - Опции через «или» → разбиваются на чипы
 - По умолчанию — стандартные подсказки из `SUGGESTED`
+
+### Адаптивная вёрстка
+
+Интерфейс адаптирован для мобильных устройств: на экранах ≤ 600px уменьшаются отступы, пузырь сообщений расширяется до 86% ширины, чипы переносятся на следующую строку при нехватке места.
 
 ### Стандартные подсказки
 
@@ -206,6 +233,7 @@ const SUGGESTED = [
     "text": "Обязательная услуга для доступа в Интернет по технологии LTE (4G)...",
     "page": 1,
     "tags": ["internet", "activation"],
+    "article_url": "https://wiki.motiv.ru/mobile-internet",
     "language": "ru"
   }
 ]
@@ -220,6 +248,7 @@ const SUGGESTED = [
 | `text` | да | Текст чанка — именно он векторизуется |
 | `page` | да | Номер страницы в исходном PDF |
 | `tags` | нет | Массив строк-тегов |
+| `article_url` | нет | URL статьи — делает источник кликабельным в интерфейсе |
 
 ### Формат Markdown
 
@@ -251,18 +280,20 @@ curl -X POST http://localhost:8000/admin/upload -F "file=@new_doc.json"
 
 # Полный сброс и повторная загрузка
 curl -X POST http://localhost:8000/admin/clear
-curl -X POST http://localhost:8000/admin/upload -F "file=@knowledge_base.json"
-```
-
-### Загрузка через скрипт (при остановленном бэкенде)
-
-```bash
-python data/upload_markdown.py data/my_file.json --qdrant-host localhost
+curl -X POST http://localhost:8000/admin/upload -F "file=@docs/base1203.json"
 ```
 
 ---
 
 ## API
+
+### `GET /health`
+
+Проверка состояния бэкенда. Используется фронтендом для отображения индикатора «Онлайн/Оффлайн».
+
+```json
+{"status": "ok"}
+```
 
 ### `POST /chat`
 
@@ -282,12 +313,18 @@ python data/upload_markdown.py data/my_file.json --qdrant-host localhost
 {
   "answer": "Для подключения мобильного интернета необходима USIM-карта...",
   "sources": [
-    {"title": "Мобильный Интернет", "section": "Общая информация", "page": 1}
+    {
+      "title": "Мобильный Интернет",
+      "section": "Общая информация",
+      "page": 1,
+      "score": 0.91,
+      "url": "https://wiki.motiv.ru/mobile-internet"
+    }
   ]
 }
 ```
 
-Поле `history` опционально.
+Поле `history` опционально. Поле `url` в источниках присутствует, если чанк содержит `article_url`.
 
 ### `GET /admin/documents`
 
@@ -301,14 +338,9 @@ python data/upload_markdown.py data/my_file.json --qdrant-host localhost
 
 **Целевое обновление** — заменяет чанки только тех документов, которые есть в файле. Остальные документы не затрагиваются. Принимает `multipart/form-data` с полем `file` (`.json` или `.md`).
 
-```bash
-# Обновить только "Свой тариф_СО" — другие документы останутся нетронутыми
-curl -X POST http://localhost:8000/admin/update -F "file=@svoy_tarif_updated.json"
-```
-
 ### `POST /admin/delete-document`
 
-Удаляет все чанки конкретного документа по его названию. Используется для удаления устаревших материалов.
+Удаляет все чанки конкретного документа по его названию.
 
 ```bash
 curl -X POST http://localhost:8000/admin/delete-document \
@@ -332,7 +364,7 @@ curl -X POST http://localhost:8000/admin/delete-document \
 |---|---|---|
 | `QDRANT_HOST` | не задан → disk-режим | Хост Qdrant-сервера (в Docker: `qdrant`) |
 | `REDIS_HOST` | `localhost` | Хост Redis-сервера (в Docker: `redis`) |
-| `LLM_MODEL` | `""` → `g4f.models.default` | Модель для g4f |
+| `LLM_MODEL` | `""` → `g4f.models.default` | Модель для g4f. Оставлять пустым — не ставить `"llama3"` |
 
 ---
 
@@ -340,4 +372,4 @@ curl -X POST http://localhost:8000/admin/delete-document \
 
 - **g4f** использует бесплатные провайдеры — время ответа LLM зависит от их доступности (обычно 10–40 сек). Первый запрос к теме без кеша всегда медленный; повторный — мгновенный из Redis.
 - **Только CPU** — модель `BAAI/bge-m3` запускается без GPU; повторные запросы быстрые благодаря LRU-кешу.
-- **OCR-шум в чанках** — чанки из PDF могут содержать артефакты распознавания (навигационные элементы). Рекомендуется чистить текст перед загрузкой.
+- **OCR-шум в чанках** — чанки из PDF могут содержать артефакты распознавания. Рекомендуется чистить текст перед загрузкой согласно `docs/knowledge_base_requirements.md`.
