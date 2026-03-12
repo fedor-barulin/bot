@@ -344,7 +344,7 @@ function App() {
                       {/* Bubble */}
                       <div
                         style={{
-                          background: isUser ? '#e8734a' : 'var(--bg-white)',
+                          background: isUser ? '#F4AA92' : 'var(--bg-white)',
                           color: isUser ? 'white' : 'var(--text-primary)',
                           padding: '12px 16px',
                           borderRadius: isUser ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
