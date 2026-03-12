@@ -9,6 +9,20 @@ const SUGGESTED = [
   'Блокировка SIM-карты',
 ];
 
+function extractQuickReplies(text) {
+  if (!text.includes('?')) return [];
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const options = [];
+  for (const line of lines) {
+    const match = line.match(/^(?:\d+[.)]\s*|-\s*|•\s*)(.+)/);
+    if (match) {
+      const option = match[1].replace(/\*\*/g, '').trim();
+      if (option.length > 0 && option.length < 80) options.push(option);
+    }
+  }
+  return options;
+}
+
 function formatContent(text) {
   const lines = text.split('\n');
   return lines.map((line, i) => {
@@ -241,6 +255,10 @@ function App() {
               const isUser = msg.role === 'user';
               const prevMsg = messages[idx - 1];
               const showTime = !prevMsg || prevMsg.time !== msg.time || prevMsg.role !== msg.role;
+              const isLastMsg = idx === messages.length - 1;
+              const quickReplies = !isUser && isLastMsg && !loading
+                ? extractQuickReplies(msg.content)
+                : [];
 
               return (
                 <div key={msg.id} style={{ marginBottom: 16 }}>
@@ -341,36 +359,72 @@ function App() {
 
                       {/* Actions */}
                       {!isUser && (
-                        <div style={{ display: 'flex', gap: 4, marginTop: 6, paddingLeft: 2 }}>
-                          <button
-                            onClick={() => copy(msg)}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: 4,
-                              background: 'none', border: 'none', cursor: 'pointer',
-                              color: copiedId === msg.id ? 'var(--accent-green)' : 'var(--text-muted)',
-                              padding: '3px 8px', borderRadius: 6, fontSize: 12,
-                              transition: 'color 0.2s',
-                            }}
-                          >
-                            {copiedId === msg.id ? <CheckIcon /> : <CopyIcon />}
-                            {copiedId === msg.id ? 'Скопировано' : 'Копировать'}
-                          </button>
-                          <button
-                            style={{
-                              background: 'none', border: 'none', cursor: 'pointer',
-                              color: 'var(--text-muted)', padding: '3px 6px', borderRadius: 6, fontSize: 14,
-                            }}
-                          >
-                            👍
-                          </button>
-                          <button
-                            style={{
-                              background: 'none', border: 'none', cursor: 'pointer',
-                              color: 'var(--text-muted)', padding: '3px 6px', borderRadius: 6, fontSize: 14,
-                            }}
-                          >
-                            👎
-                          </button>
+                        <div>
+                          <div style={{ display: 'flex', gap: 4, marginTop: 6, paddingLeft: 2 }}>
+                            <button
+                              onClick={() => copy(msg)}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 4,
+                                background: 'none', border: 'none', cursor: 'pointer',
+                                color: copiedId === msg.id ? 'var(--accent-green)' : 'var(--text-muted)',
+                                padding: '3px 8px', borderRadius: 6, fontSize: 12,
+                                transition: 'color 0.2s',
+                              }}
+                            >
+                              {copiedId === msg.id ? <CheckIcon /> : <CopyIcon />}
+                              {copiedId === msg.id ? 'Скопировано' : 'Копировать'}
+                            </button>
+                            <button
+                              style={{
+                                background: 'none', border: 'none', cursor: 'pointer',
+                                color: 'var(--text-muted)', padding: '3px 6px', borderRadius: 6, fontSize: 14,
+                              }}
+                            >
+                              👍
+                            </button>
+                            <button
+                              style={{
+                                background: 'none', border: 'none', cursor: 'pointer',
+                                color: 'var(--text-muted)', padding: '3px 6px', borderRadius: 6, fontSize: 14,
+                              }}
+                            >
+                              👎
+                            </button>
+                          </div>
+
+                          {/* Quick reply chips */}
+                          {quickReplies.length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10, paddingLeft: 2 }}>
+                              {quickReplies.map((reply) => (
+                                <button
+                                  key={reply}
+                                  onClick={() => handleSend(reply)}
+                                  style={{
+                                    background: 'var(--bg-white)',
+                                    border: '1.5px solid var(--brand-orange)',
+                                    borderRadius: 20,
+                                    padding: '6px 14px',
+                                    color: 'var(--brand-orange)',
+                                    fontSize: 13,
+                                    fontWeight: 500,
+                                    cursor: 'pointer',
+                                    transition: 'background 0.15s, color 0.15s',
+                                    fontFamily: 'inherit',
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.background = 'var(--brand-orange)';
+                                    e.currentTarget.style.color = 'white';
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.background = 'var(--bg-white)';
+                                    e.currentTarget.style.color = 'var(--brand-orange)';
+                                  }}
+                                >
+                                  {reply}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
