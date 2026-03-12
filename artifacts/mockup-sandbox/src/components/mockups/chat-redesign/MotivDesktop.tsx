@@ -278,14 +278,14 @@ export function MotivDesktop() {
                     <div style={{ maxWidth: '68%' }}>
                       {/* Bubble */}
                       <div style={{
-                        background: isUser ? 'var(--brand-orange)' : 'var(--bg-white)',
+                        background: isUser ? '#e8734a' : 'var(--bg-white)',
                         color: isUser ? 'white' : 'var(--text-primary)',
                         padding: '12px 16px',
                         borderRadius: isUser ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
                         fontSize: 14,
                         lineHeight: 1.55,
                         boxShadow: isUser
-                          ? '0 2px 8px rgba(243,112,33,0.25)'
+                          ? '0 2px 8px rgba(180,80,40,0.18)'
                           : 'var(--shadow-sm)',
                       }}>
                         {formatContent(msg.content)}
