@@ -100,6 +100,11 @@ CONTEXT:
             except Exception:
                 text = ""
 
+        # 0. Strip Pollinations.AI ad blocks appended by free g4f provider
+        text = re.sub(r'\n*-{2,}\n*Support Pollinations.*', '', text, flags=re.DOTALL | re.IGNORECASE)
+        text = re.sub(r'\n*🌸.*?🌸.*', '', text, flags=re.DOTALL)
+        text = re.sub(r'\n*Powered by Pollinations.*', '', text, flags=re.DOTALL | re.IGNORECASE)
+
         if not text.strip() or "Информация отсутствует" in text:
             return "Информация отсутствует в базе знаний"
             
