@@ -52,6 +52,7 @@ class SourceItem(BaseModel):
     title: str
     section: str
     page: int
+    url: str = ""
 
 class ChatResponse(BaseModel):
     answer: str
@@ -79,7 +80,12 @@ async def chat_endpoint(request: ChatRequest):
         
         if source_key not in seen:
             seen.add(source_key)
-            sources.append(SourceItem(title=title, section=section, page=page))
+            sources.append(SourceItem(
+                title=title,
+                section=section,
+                page=page,
+                url=chunk.get("article_url", ""),
+            ))
     
     response_data = {"answer": answer, "sources": [s.model_dump() for s in sources]}
     

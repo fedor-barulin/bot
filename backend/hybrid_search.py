@@ -51,6 +51,7 @@ class HybridSearch:
                     "tags": chunk["tags"],
                     "text": chunk["text"],
                     "source": chunk["source"],
+                    "article_url": chunk.get("article_url", ""),
                 },
             ))
         self.client.upsert(collection_name=self.collection_name, points=points)

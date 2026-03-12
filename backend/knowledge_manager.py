@@ -72,6 +72,7 @@ def parse_json(content: str) -> list[dict]:
             "tags": item.get("tags") or [],
             "text": text,
             "source": source,
+            "article_url": item.get("article_url", ""),
         })
 
     return chunks

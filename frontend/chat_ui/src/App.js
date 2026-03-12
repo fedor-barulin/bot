@@ -365,27 +365,36 @@ function App() {
                               display: 'flex', flexWrap: 'wrap', gap: 6,
                             }}
                           >
-                            {msg.sources.map((s, i) => (
-                              <div
-                                key={i}
-                                style={{
-                                  display: 'flex', alignItems: 'center', gap: 5,
-                                  background: 'var(--brand-orange-light)',
-                                  borderRadius: 8, padding: '3px 8px',
-                                }}
-                              >
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--brand-orange)" strokeWidth="2.5">
-                                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                                  <polyline points="14 2 14 8 20 8" />
-                                </svg>
-                                <span style={{ fontSize: 11, color: 'var(--brand-orange)', fontWeight: 600 }}>
-                                  {s.title}
-                                </span>
-                                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                                  {s.section} · стр. {s.page}
-                                </span>
-                              </div>
-                            ))}
+                            {msg.sources.map((s, i) => {
+                              const inner = (
+                                <>
+                                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--brand-orange)" strokeWidth="2.5">
+                                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                  </svg>
+                                  <span style={{ fontSize: 11, color: 'var(--brand-orange)', fontWeight: 600 }}>
+                                    {s.title}
+                                  </span>
+                                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                                    {s.section} · стр. {s.page}
+                                  </span>
+                                </>
+                              );
+                              const chipStyle = {
+                                display: 'flex', alignItems: 'center', gap: 5,
+                                background: 'var(--brand-orange-light)',
+                                borderRadius: 8, padding: '3px 8px',
+                                textDecoration: 'none',
+                                cursor: s.url ? 'pointer' : 'default',
+                              };
+                              return s.url ? (
+                                <a key={i} href={s.url} target="_blank" rel="noreferrer" style={chipStyle}>
+                                  {inner}
+                                </a>
+                              ) : (
+                                <div key={i} style={chipStyle}>{inner}</div>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
