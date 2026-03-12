@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import './App.css';
+import { dbLoad, dbSave, dbClear } from './useDB';
 
 const SUGGESTED = [
   'Как настроить мобильный интернет?',
@@ -91,6 +92,20 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
   const [isOnline, setIsOnline] = useState(false);
+  const [dbLoaded, setDbLoaded] = useState(false);
+
+  useEffect(() => {
+    dbLoad().then((saved) => {
+      if (saved && saved.length > 0) setMessages(saved);
+      setDbLoaded(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!dbLoaded) return;
+    if (messages.length === 0) return;
+    dbSave(messages);
+  }, [messages, dbLoaded]);
 
   useEffect(() => {
     const checkHealth = () => {
@@ -214,7 +229,7 @@ function App() {
           </div>
           <div style={{ flex: 1 }} />
           <button
-            onClick={() => setMessages([])}
+            onClick={() => { dbClear(); setMessages([]); }}
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               background: 'none', border: '1px solid var(--border)',
