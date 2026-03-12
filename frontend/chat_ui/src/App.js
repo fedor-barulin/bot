@@ -238,7 +238,7 @@ function App() {
             display: 'flex', flexDirection: 'column',
           }}
         >
-          <div style={{ maxWidth: 780, width: '100%', margin: '0 auto', padding: '0 32px' }}>
+          <div className="chat-content-pad" style={{ maxWidth: 780, width: '100%', margin: '0 auto' }}>
 
             {/* Empty state */}
             {messages.length === 0 && (
@@ -340,7 +340,7 @@ function App() {
                       </div>
                     )}
 
-                    <div style={{ maxWidth: '68%' }}>
+                    <div className="bubble-wrap">
                       {/* Bubble */}
                       <div
                         style={{
@@ -482,11 +482,11 @@ function App() {
 
         {/* Input area */}
         <div
+          className="chat-input-pad"
           style={{
             background: 'rgba(246,247,249,0.95)',
             backdropFilter: 'blur(20px)',
             borderTop: '0.5px solid var(--border)',
-            padding: '14px 32px 16px',
             flexShrink: 0,
           }}
         >
@@ -511,6 +511,10 @@ function App() {
                         cursor: 'pointer',
                         fontFamily: 'inherit',
                         transition: 'background 0.15s, color 0.15s',
+                        maxWidth: '100%',
+                        wordBreak: 'break-word',
+                        whiteSpace: 'normal',
+                        textAlign: 'left',
                       }}
                       onMouseEnter={(e) => {
                         if (isQuick) {

@@ -37,3 +37,13 @@ body {
 }
 
 button:hover { opacity: 0.85; }
+
+.chat-content-pad { padding: 0 32px; }
+.chat-input-pad   { padding: 14px 32px 16px; }
+.bubble-wrap      { max-width: 68%; }
+
+@media (max-width: 600px) {
+  .chat-content-pad { padding: 0 12px; }
+  .chat-input-pad   { padding: 10px 12px 14px; }
+  .bubble-wrap      { max-width: 86%; }
+}
