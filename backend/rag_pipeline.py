@@ -33,7 +33,7 @@ class RAGPipeline:
         initial_answer = self.llm.generate(
             system_prompt=system_prompt, 
             user_prompt=question, 
-            max_tokens=400,
+            max_tokens=1000,
             history=history
         )
         

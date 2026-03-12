@@ -15,13 +15,20 @@ class LLMClient:
             
             kwargs = {
                 "model": self.model_name or g4f.models.default,
-                "messages": messages
+                "messages": messages,
+                "stream": False,
             }
             if max_tokens:
                 kwargs["max_tokens"] = max_tokens
-                
+
             response = g4f.ChatCompletion.create(**kwargs)
-            return response
+
+            if isinstance(response, str):
+                return response
+            try:
+                return "".join(str(chunk) for chunk in response)
+            except Exception:
+                return str(response)
         except Exception as e:
             logging.error(f"Error calling LLM {self.model_name}: {e}")
             return ""
