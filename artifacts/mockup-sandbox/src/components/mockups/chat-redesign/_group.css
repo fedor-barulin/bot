@@ -1,0 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@400;500;600;700&display=swap');
+
+:root {
+  --brand-orange: #f37021;
+  --brand-orange-light: #fef1e9;
+  --brand-dark: #21242c;
+  --brand-dark-2: #26292d;
+  --bg-primary: #f6f7f9;
+  --bg-white: #ffffff;
+  --bg-card: #f3f2f1;
+  --text-primary: #21242c;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  --accent-blue: #009fdf;
+  --accent-green: #21a038;
+  --accent-red: #ef3124;
+  --border: #e5e7eb;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06);
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
+}
