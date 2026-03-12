@@ -90,6 +90,20 @@ function App() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
+  const [isOnline, setIsOnline] = useState(false);
+
+  useEffect(() => {
+    const checkHealth = () => {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 5000);
+      fetch('/health', { signal: ctrl.signal })
+        .then(r => { clearTimeout(timer); setIsOnline(r.ok); })
+        .catch(() => { clearTimeout(timer); setIsOnline(false); });
+    };
+    checkHealth();
+    const id = setInterval(checkHealth, 30000);
+    return () => clearInterval(id);
+  }, []);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -194,8 +208,8 @@ function App() {
           </div>
           <div>
             <div style={{ fontWeight: 600, fontSize: 15, color: 'var(--text-primary)' }}>Мотив AI</div>
-            <div style={{ fontSize: 12, color: 'var(--accent-green)', fontWeight: 500 }}>
-              ● Онлайн · Корпоративная база знаний
+            <div style={{ fontSize: 12, color: isOnline ? '#21a038' : '#aaaaaa', fontWeight: 500 }}>
+              ● {isOnline ? 'Онлайн' : 'Оффлайн'} · Корпоративная база знаний
             </div>
           </div>
           <div style={{ flex: 1 }} />

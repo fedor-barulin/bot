@@ -28,6 +28,11 @@ pipeline = RAGPipeline(llm_model=LLM_MODEL, qdrant_host=QDRANT_HOST)
 cache = Cache(host=REDIS_HOST)
 analytics = Analytics()
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
+
 @app.on_event("startup")
 async def preload_models():
     loop = asyncio.get_event_loop()
