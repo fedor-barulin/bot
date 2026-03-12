@@ -56,6 +56,32 @@ class HybridSearch:
         self.client.upsert(collection_name=self.collection_name, points=points)
         return len(points)
 
+    def delete_by_document(self, title: str) -> int:
+        """Удаляет все чанки конкретного документа по полю title."""
+        result = self.client.delete(
+            collection_name=self.collection_name,
+            points_selector=models.FilterSelector(
+                filter=models.Filter(
+                    must=[models.FieldCondition(
+                        key="title",
+                        match=models.MatchValue(value=title)
+                    )]
+                )
+            ),
+        )
+        logging.info(f"Deleted chunks for document '{title}': {result}")
+        return 1
+
+    def list_documents(self) -> list[str]:
+        """Возвращает список уникальных названий документов в базе."""
+        result = self.client.scroll(
+            collection_name=self.collection_name,
+            with_payload=True,
+            limit=10000,
+        )
+        titles = {point.payload.get("title") for point in result[0] if point.payload.get("title")}
+        return sorted(titles)
+
     def search(self, queries: list[str], sections: list[str], limit=10) -> list[dict]:
         all_results = []
 

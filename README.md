@@ -232,13 +232,26 @@ const SUGGESTED = [
 ---
 ```
 
-### Загрузка через API
+### Управление базой через API
 
 ```bash
-curl -X POST http://localhost:8000/admin/upload -F "file=@my_data.json"
-curl -X POST http://localhost:8000/admin/upload -F "file=@my_data.md"
+# Посмотреть, какие документы загружены
+curl http://localhost:8000/admin/documents
 
+# Обновить один документ (остальные не тронуты)
+curl -X POST http://localhost:8000/admin/update -F "file=@svoy_tarif.json"
+
+# Удалить устаревший документ
+curl -X POST http://localhost:8000/admin/delete-document \
+  -H 'Content-Type: application/json' \
+  -d '{"title": "Название документа"}'
+
+# Добавить новый документ (без удаления существующих)
+curl -X POST http://localhost:8000/admin/upload -F "file=@new_doc.json"
+
+# Полный сброс и повторная загрузка
 curl -X POST http://localhost:8000/admin/clear
+curl -X POST http://localhost:8000/admin/upload -F "file=@knowledge_base.json"
 ```
 
 ### Загрузка через скрипт (при остановленном бэкенде)
@@ -276,13 +289,40 @@ python data/upload_markdown.py data/my_file.json --qdrant-host localhost
 
 Поле `history` опционально.
 
+### `GET /admin/documents`
+
+Возвращает список всех документов, загруженных в базу знаний.
+
+```json
+{"documents": ["Свой тариф_СО", "Мобильный Интернет", "Контакты МОТИВ"], "count": 3}
+```
+
+### `POST /admin/update`
+
+**Целевое обновление** — заменяет чанки только тех документов, которые есть в файле. Остальные документы не затрагиваются. Принимает `multipart/form-data` с полем `file` (`.json` или `.md`).
+
+```bash
+# Обновить только "Свой тариф_СО" — другие документы останутся нетронутыми
+curl -X POST http://localhost:8000/admin/update -F "file=@svoy_tarif_updated.json"
+```
+
+### `POST /admin/delete-document`
+
+Удаляет все чанки конкретного документа по его названию. Используется для удаления устаревших материалов.
+
+```bash
+curl -X POST http://localhost:8000/admin/delete-document \
+  -H 'Content-Type: application/json' \
+  -d '{"title": "Свой тариф_СО"}'
+```
+
 ### `POST /admin/upload`
 
-Загружает `.json` или `.md` файл в базу знаний. Принимает `multipart/form-data` с полем `file`.
+Добавляет чанки из файла **без удаления** существующих. Для первой загрузки или дополнения базы. Принимает `multipart/form-data` с полем `file`.
 
 ### `POST /admin/clear`
 
-Полностью очищает коллекцию `knowledge_base` в Qdrant.
+Полностью очищает коллекцию `knowledge_base` в Qdrant (удаляет все документы).
 
 ---
 

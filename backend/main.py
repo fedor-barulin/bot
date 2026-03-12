@@ -104,6 +104,85 @@ async def admin_clear():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/admin/documents")
+async def admin_list_documents():
+    """Возвращает список документов, загруженных в базу знаний."""
+    try:
+        loop = asyncio.get_event_loop()
+        titles = await loop.run_in_executor(None, pipeline.hybrid_search.list_documents)
+        return {"documents": titles, "count": len(titles)}
+    except Exception as e:
+        logging.error(f"admin/documents error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class DeleteDocumentRequest(BaseModel):
+    title: str
+
+
+@app.post("/admin/delete-document")
+async def admin_delete_document(request: DeleteDocumentRequest):
+    """Удаляет все чанки конкретного документа по его названию (title)."""
+    try:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, pipeline.hybrid_search.delete_by_document, request.title)
+        pipeline._cached_search.cache_clear()
+        total = pipeline.hybrid_search.client.count(
+            collection_name=pipeline.hybrid_search.collection_name
+        ).count
+        logging.info(f"Deleted document '{request.title}'. Chunks remaining: {total}")
+        return {"status": "ok", "deleted_title": request.title, "chunks_remaining": total}
+    except Exception as e:
+        logging.error(f"admin/delete-document error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/admin/update")
+async def admin_update(file: UploadFile = File(...)):
+    """Обновляет документы из файла: удаляет старые чанки с совпадающим title, загружает новые.
+    Остальные документы в базе не затрагиваются."""
+    filename = file.filename or ""
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext not in ("md", "json"):
+        raise HTTPException(status_code=400, detail="Принимаются только файлы .md и .json")
+
+    try:
+        raw = await file.read()
+        content = raw.decode("utf-8")
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Не удалось прочитать файл: {e}")
+
+    try:
+        chunks = parse_file(filename, content)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Ошибка разбора файла: {e}")
+
+    if not chunks:
+        raise HTTPException(status_code=422, detail="Чанки не найдены. Проверьте формат файла.")
+
+    titles_in_file = {c["title"] for c in chunks}
+
+    try:
+        loop = asyncio.get_event_loop()
+        for title in titles_in_file:
+            await loop.run_in_executor(None, pipeline.hybrid_search.delete_by_document, title)
+        added = await loop.run_in_executor(None, pipeline.hybrid_search.upload_chunks, chunks)
+        pipeline._cached_search.cache_clear()
+        total = pipeline.hybrid_search.client.count(
+            collection_name=pipeline.hybrid_search.collection_name
+        ).count
+        logging.info(f"Updated {list(titles_in_file)}: {added} chunks. Total: {total}")
+        return {
+            "status": "ok",
+            "updated_documents": sorted(titles_in_file),
+            "added": added,
+            "total": total,
+        }
+    except Exception as e:
+        logging.error(f"admin/update error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/admin/upload")
 async def admin_upload(file: UploadFile = File(...)):
     """Загружает MD или JSON файл и добавляет чанки в базу знаний."""
