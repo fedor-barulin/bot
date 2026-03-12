@@ -12,15 +12,32 @@ const SUGGESTED = [
 function extractQuickReplies(text) {
   if (!text.includes('?')) return [];
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
-  const options = [];
+
+  // 1. Numbered / bulleted list items
+  const listOptions = [];
   for (const line of lines) {
     const match = line.match(/^(?:\d+[.)]\s*|-\s*|•\s*)(.+)/);
     if (match) {
       const option = match[1].replace(/\*\*/g, '').trim();
-      if (option.length > 0 && option.length < 80) options.push(option);
+      if (option.length > 0 && option.length < 100) listOptions.push(option);
     }
   }
-  return options;
+  if (listOptions.length >= 2) return listOptions;
+
+  // 2. Inline "или" options — e.g. "… – вариант А или вариант Б?"
+  const questionLine = lines.find((l) => l.includes('?')) || '';
+  const clean = questionLine.replace(/\?$/, '').trim();
+
+  // After dash/colon: "проверить – X или Y"
+  const afterDash = clean.match(/[–—:]\s*(.+)$/);
+  const segment = afterDash ? afterDash[1] : clean;
+  const orParts = segment.split(/\s+или\s+/i).map((p) => p.trim()).filter((p) => p.length > 0 && p.length < 100);
+  if (orParts.length >= 2) {
+    // Capitalise first letter of each
+    return orParts.map((p) => p.charAt(0).toUpperCase() + p.slice(1));
+  }
+
+  return [];
 }
 
 function formatContent(text) {
@@ -128,6 +145,12 @@ function App() {
     setCopiedId(msg.id);
     setTimeout(() => setCopiedId(null), 2000);
   };
+
+  const lastMsg = messages[messages.length - 1];
+  const currentQuickReplies =
+    lastMsg && lastMsg.role === 'assistant' && !loading
+      ? extractQuickReplies(lastMsg.content)
+      : [];
 
   return (
     <div
@@ -255,10 +278,6 @@ function App() {
               const isUser = msg.role === 'user';
               const prevMsg = messages[idx - 1];
               const showTime = !prevMsg || prevMsg.time !== msg.time || prevMsg.role !== msg.role;
-              const isLastMsg = idx === messages.length - 1;
-              const quickReplies = !isUser && isLastMsg && !loading
-                ? extractQuickReplies(msg.content)
-                : [];
 
               return (
                 <div key={msg.id} style={{ marginBottom: 16 }}>
@@ -359,72 +378,36 @@ function App() {
 
                       {/* Actions */}
                       {!isUser && (
-                        <div>
-                          <div style={{ display: 'flex', gap: 4, marginTop: 6, paddingLeft: 2 }}>
-                            <button
-                              onClick={() => copy(msg)}
-                              style={{
-                                display: 'flex', alignItems: 'center', gap: 4,
-                                background: 'none', border: 'none', cursor: 'pointer',
-                                color: copiedId === msg.id ? 'var(--accent-green)' : 'var(--text-muted)',
-                                padding: '3px 8px', borderRadius: 6, fontSize: 12,
-                                transition: 'color 0.2s',
-                              }}
-                            >
-                              {copiedId === msg.id ? <CheckIcon /> : <CopyIcon />}
-                              {copiedId === msg.id ? 'Скопировано' : 'Копировать'}
-                            </button>
-                            <button
-                              style={{
-                                background: 'none', border: 'none', cursor: 'pointer',
-                                color: 'var(--text-muted)', padding: '3px 6px', borderRadius: 6, fontSize: 14,
-                              }}
-                            >
-                              👍
-                            </button>
-                            <button
-                              style={{
-                                background: 'none', border: 'none', cursor: 'pointer',
-                                color: 'var(--text-muted)', padding: '3px 6px', borderRadius: 6, fontSize: 14,
-                              }}
-                            >
-                              👎
-                            </button>
-                          </div>
-
-                          {/* Quick reply chips */}
-                          {quickReplies.length > 0 && (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10, paddingLeft: 2 }}>
-                              {quickReplies.map((reply) => (
-                                <button
-                                  key={reply}
-                                  onClick={() => handleSend(reply)}
-                                  style={{
-                                    background: 'var(--bg-white)',
-                                    border: '1.5px solid var(--brand-orange)',
-                                    borderRadius: 20,
-                                    padding: '6px 14px',
-                                    color: 'var(--brand-orange)',
-                                    fontSize: 13,
-                                    fontWeight: 500,
-                                    cursor: 'pointer',
-                                    transition: 'background 0.15s, color 0.15s',
-                                    fontFamily: 'inherit',
-                                  }}
-                                  onMouseEnter={(e) => {
-                                    e.currentTarget.style.background = 'var(--brand-orange)';
-                                    e.currentTarget.style.color = 'white';
-                                  }}
-                                  onMouseLeave={(e) => {
-                                    e.currentTarget.style.background = 'var(--bg-white)';
-                                    e.currentTarget.style.color = 'var(--brand-orange)';
-                                  }}
-                                >
-                                  {reply}
-                                </button>
-                              ))}
-                            </div>
-                          )}
+                        <div style={{ display: 'flex', gap: 4, marginTop: 6, paddingLeft: 2 }}>
+                          <button
+                            onClick={() => copy(msg)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 4,
+                              background: 'none', border: 'none', cursor: 'pointer',
+                              color: copiedId === msg.id ? 'var(--accent-green)' : 'var(--text-muted)',
+                              padding: '3px 8px', borderRadius: 6, fontSize: 12,
+                              transition: 'color 0.2s',
+                            }}
+                          >
+                            {copiedId === msg.id ? <CheckIcon /> : <CopyIcon />}
+                            {copiedId === msg.id ? 'Скопировано' : 'Копировать'}
+                          </button>
+                          <button
+                            style={{
+                              background: 'none', border: 'none', cursor: 'pointer',
+                              color: 'var(--text-muted)', padding: '3px 6px', borderRadius: 6, fontSize: 14,
+                            }}
+                          >
+                            👍
+                          </button>
+                          <button
+                            style={{
+                              background: 'none', border: 'none', cursor: 'pointer',
+                              color: 'var(--text-muted)', padding: '3px 6px', borderRadius: 6, fontSize: 14,
+                            }}
+                          >
+                            👎
+                          </button>
                         </div>
                       )}
                     </div>
@@ -485,22 +468,44 @@ function App() {
           }}
         >
           <div style={{ maxWidth: 780, margin: '0 auto' }}>
-            {/* Suggested chips (shown when there are messages) */}
+            {/* Chips above input: quick replies when bot asked a question, otherwise suggested */}
             {messages.length > 0 && (
               <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
-                {SUGGESTED.slice(0, 3).map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => handleSend(s)}
-                    style={{
-                      background: 'var(--bg-white)', border: '1px solid var(--border)',
-                      borderRadius: 14, padding: '5px 12px',
-                      color: 'var(--text-secondary)', fontSize: 12, cursor: 'pointer',
-                    }}
-                  >
-                    {s}
-                  </button>
-                ))}
+                {(currentQuickReplies.length > 0 ? currentQuickReplies : SUGGESTED.slice(0, 3)).map((s) => {
+                  const isQuick = currentQuickReplies.length > 0;
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => handleSend(s)}
+                      style={{
+                        background: isQuick ? 'var(--bg-white)' : 'var(--bg-white)',
+                        border: isQuick ? '1.5px solid var(--brand-orange)' : '1px solid var(--border)',
+                        borderRadius: 20,
+                        padding: isQuick ? '6px 14px' : '5px 12px',
+                        color: isQuick ? 'var(--brand-orange)' : 'var(--text-secondary)',
+                        fontSize: isQuick ? 13 : 12,
+                        fontWeight: isQuick ? 500 : 400,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        transition: 'background 0.15s, color 0.15s',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (isQuick) {
+                          e.currentTarget.style.background = 'var(--brand-orange)';
+                          e.currentTarget.style.color = 'white';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (isQuick) {
+                          e.currentTarget.style.background = 'var(--bg-white)';
+                          e.currentTarget.style.color = 'var(--brand-orange)';
+                        }
+                      }}
+                    >
+                      {s}
+                    </button>
+                  );
+                })}
               </div>
             )}
 
