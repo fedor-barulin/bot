@@ -47,13 +47,6 @@ const MOCK_MESSAGES: Message[] = [
   },
 ];
 
-const SIDEBAR_ITEMS = [
-  { icon: '💬', label: 'Чат', active: true },
-  { icon: '📚', label: 'База знаний', active: false },
-  { icon: '📊', label: 'Аналитика', active: false },
-  { icon: '⚙️', label: 'Настройки', active: false },
-];
-
 const SUGGESTED = [
   'Как подключить роуминг?',
   'Тарифы на безлимитный интернет',
@@ -142,79 +135,6 @@ export function MotivDesktop() {
       fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif',
       overflow: 'hidden',
     }}>
-
-      {/* Sidebar */}
-      <div style={{
-        width: 220,
-        background: 'var(--brand-dark-2)',
-        display: 'flex',
-        flexDirection: 'column',
-        flexShrink: 0,
-      }}>
-        {/* Logo */}
-        <div style={{
-          padding: '22px 20px 18px',
-          borderBottom: '1px solid rgba(255,255,255,0.07)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 36, height: 36, borderRadius: 10,
-              background: 'linear-gradient(135deg, var(--brand-orange), #ff8c42)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(243,112,33,0.4)',
-            }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/>
-              </svg>
-            </div>
-            <div>
-              <div style={{ color: 'white', fontWeight: 700, fontSize: 15, lineHeight: 1.1 }}>Мотив AI</div>
-              <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>Support Agent</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Nav */}
-        <nav style={{ padding: '10px 10px', flex: 1 }}>
-          {SIDEBAR_ITEMS.map(item => (
-            <div key={item.label} style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '9px 12px', borderRadius: 10, marginBottom: 2,
-              background: item.active ? 'rgba(243,112,33,0.18)' : 'transparent',
-              cursor: 'pointer',
-              transition: 'background 0.15s',
-            }}>
-              <span style={{ fontSize: 16 }}>{item.icon}</span>
-              <span style={{
-                color: item.active ? 'var(--brand-orange)' : 'rgba(255,255,255,0.55)',
-                fontSize: 14, fontWeight: item.active ? 600 : 400,
-              }}>
-                {item.label}
-              </span>
-            </div>
-          ))}
-        </nav>
-
-        {/* User */}
-        <div style={{
-          padding: '14px 16px',
-          borderTop: '1px solid rgba(255,255,255,0.07)',
-          display: 'flex', alignItems: 'center', gap: 10,
-        }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.12)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 14, color: 'white',
-          }}>
-            А
-          </div>
-          <div>
-            <div style={{ color: 'white', fontSize: 13, fontWeight: 500 }}>Алексей</div>
-            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>Инженер поддержки</div>
-          </div>
-        </div>
-      </div>
 
       {/* Main chat area */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
